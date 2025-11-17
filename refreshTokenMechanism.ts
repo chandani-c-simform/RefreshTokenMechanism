@@ -24,6 +24,29 @@ const processQueue = (error, freshToken = null) => {
   failedReqQueue = [];
 };
 
+/**
+ * Axios Request Interceptor
+ * Automatically attaches the access token to every outgoing request
+ * so that all protected APIs receive the Authorization header.
+ */
+axios.interceptors.request.use(
+  config => {
+    // Get the access token from your Redux store
+    const accessToken = store.getState()?.auth?.user?.accessToken;
+
+    // If a token exists, attach it to the Authorization header
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+
+    return config;
+  },
+  error => {
+    // If something goes wrong before sending the request
+    return Promise.reject(error);
+  }
+);
+
 // Axios response interceptor to handle token refresh mechanism
 axios.interceptors.response.use(
   (response) => {
@@ -48,7 +71,7 @@ axios.interceptors.response.use(
           })
           .catch((failedQueueError) => {
             // Handle any errors that occur while processing the queue
-            Promise.reject(failedQueueError);
+            return Promise.reject(failedQueueError);
           });
       }
 
@@ -99,7 +122,7 @@ axios.interceptors.response.use(
       });
     } else {
       // If the error is not a 401 or the request has already been retried, return the error
-      return error;
+      return Promise.reject(error);
     }
   }
 );
